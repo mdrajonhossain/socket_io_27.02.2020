@@ -1,0 +1,45 @@
+var express = require("express");
+var app = express();
+var server = require('http').createServer(app);
+var io = require('socket.io').listen(server);
+
+const userIdToSocketId = {};
+
+server.listen(process.env.PORT || 4005);
+console.log('Server Running...')
+
+app.get("/", function (req, res) {
+    res.sendFile(__dirname + "/index.html");
+});
+
+// Handle socket connections
+io.sockets.on('connection', function (socket) {
+
+    // Client emits their userId after connect
+    socket.on('register', function (userId) {
+        userIdToSocketId[userId] = socket.id;
+        console.log('User registered with socketId', socket.id, 'and userId', userId);
+    });
+
+    socket.on('disconnect', function () {
+        // Remove socketId from mapping
+        for (const [userId, sId] of Object.entries(userIdToSocketId)) {
+            if (sId === socket.id) {
+                delete userIdToSocketId[userId];
+                console.log('User disconnected', userId);
+                break;
+            }
+        }
+    });
+
+    socket.on('send message', function (data) {
+        // Send to a specific userId
+        const recipientId = data.toUserId;
+        const recipientSocketId = userIdToSocketId[recipientId];
+        if (recipientSocketId) {
+            io.to(recipientSocketId).emit('new message', {msg: data.message});
+        }
+    });
+
+});
+
