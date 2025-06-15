@@ -1,0 +1,39 @@
+var express = require("express");
+var app = express();
+var server = require('http').createServer(app);
+var io = require('socket.io').listen(server);
+var connections = [];
+
+server.listen(process.env.PORT || 4005);
+console.log('Server Running ...')
+
+app.get("/", function (req, res) {
+    res.sendFile(__dirname + "/index.html");
+});
+
+// Handle socket connections
+io.sockets.on('connection', function (socket) {
+    connections.push(socket.id);
+    console.log('Connected: %s socket(s) connected', connections.length);
+
+    // Handle disconnect
+    socket.on('disconnect', function () {
+        const idx = connections.indexOf(socket.id);
+        if (idx !== -1) {
+            connections.splice(idx, 1);
+        }
+        console.log('Disconnected: %s socket(s) connected', connections.length);
+    });
+
+    // Handle messages
+    socket.on('send message', function (data) {
+        console.log(30, data.message);
+        console.log(31, data.socketId);
+        console.log("All connected IDs :", connections);
+
+        if (connections.length > 1) {
+            // Send a message to the 2nd connected socket
+            io.to(connections[0]).emit('new message', {msg: "123"});
+        }
+    });
+});
